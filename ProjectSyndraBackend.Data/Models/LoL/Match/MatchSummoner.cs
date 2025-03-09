@@ -1,6 +1,6 @@
-using ProjectSyndraBackend.Data.Models.Account;
+using ProjectSyndraBackend.Data.Models.LoL.Account;
 
-namespace ProjectSyndraBackend.Data.Models.Match;
+namespace ProjectSyndraBackend.Data.Models.LoL.Match;
 
 public class MatchSummoner
 {

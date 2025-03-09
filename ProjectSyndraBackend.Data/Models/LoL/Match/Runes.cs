@@ -1,4 +1,4 @@
-﻿namespace ProjectSyndraBackend.Data.Models.Match;
+﻿namespace ProjectSyndraBackend.Data.Models.LoL.Match;
 
 public class Runes
 {

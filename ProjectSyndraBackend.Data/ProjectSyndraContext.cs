@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using ProjectSyndraBackend.Data.Models.Account;
-using ProjectSyndraBackend.Data.Models.Match;
+using ProjectSyndraBackend.Data.Models.LoL.Account;
+using ProjectSyndraBackend.Data.Models.LoL.Match;
 using ProjectSyndraBackend.Data.Models.Service;
 
 namespace ProjectSyndraBackend.Data;

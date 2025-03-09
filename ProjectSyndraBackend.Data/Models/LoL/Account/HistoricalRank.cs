@@ -1,6 +1,6 @@
 // HistoricalRank.cs
 
-namespace ProjectSyndraBackend.Data.Models.Account;
+namespace ProjectSyndraBackend.Data.Models.LoL.Account;
 
 public class HistoricalRank
 {

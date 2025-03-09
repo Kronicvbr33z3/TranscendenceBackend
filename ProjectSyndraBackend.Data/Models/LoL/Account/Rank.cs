@@ -1,4 +1,4 @@
-namespace ProjectSyndraBackend.Data.Models.Account;
+namespace ProjectSyndraBackend.Data.Models.LoL.Account;
 
 public class Rank
 {

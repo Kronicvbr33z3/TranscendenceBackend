@@ -1,6 +1,6 @@
 using Camille.Enums;
 using Camille.RiotGames;
-using ProjectSyndraBackend.Data.Models.Account;
+using ProjectSyndraBackend.Data.Models.LoL.Account;
 using ProjectSyndraBackend.Service.Services.RiotApi.Interfaces;
 
 namespace ProjectSyndraBackend.Service.Services.RiotApi.Implementations;
