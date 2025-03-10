@@ -15,6 +15,7 @@ public class ProjectSyndraContext(DbContextOptions<ProjectSyndraContext> options
     public DbSet<CurrentDataParameters> CurrentDataParameters { get; set; }
     public DbSet<Rank> Ranks { get; set; }
     public DbSet<HistoricalRank> HistoricalRanks { get; set; }
+    public DbSet<CurrentChampionLoadout> CurrentChampionLoadouts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
