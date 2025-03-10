@@ -6,7 +6,7 @@ public class CurrentChampionLoadout
 {
     public int Id { get; set; }
 
-    public List<UnitWinPercent> UnitWinPercents { get; set; } = new();
+    public List<UnitWinPercent> UnitWinPercents { get; set; } = [];
 
     // filters for the loadout
     public string ChampionName { get; set; }

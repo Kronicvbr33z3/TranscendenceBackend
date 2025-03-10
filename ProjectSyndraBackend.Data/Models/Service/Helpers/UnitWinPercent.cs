@@ -6,5 +6,6 @@ public class UnitWinPercent
     public int NumberOfGames { get; set; }
     public required float WinRate { get; set; }
     public required string Type { get; set; }
-    public required object Unit { get; set; }
+    public required string Unit { get; set; }
 }
+
