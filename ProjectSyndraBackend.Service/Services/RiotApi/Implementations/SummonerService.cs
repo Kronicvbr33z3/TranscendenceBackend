@@ -9,7 +9,7 @@ namespace ProjectSyndraBackend.Service.Services.RiotApi.Implementations;
 
 // SummonerService.cs
 
-public class SummonerService(RiotGamesApi riotApi, IRankService rankService, ProjectSyndraContext context)
+public class SummonerService(RiotGamesApi riotApi)
     : ISummonerService
 {
     public async Task<Summoner> GetSummonerByIdAsync(string summonerId, PlatformRoute platformRoute,
@@ -46,33 +46,6 @@ public class SummonerService(RiotGamesApi riotApi, IRankService rankService, Pro
         current.GameName = account.GameName;
         current.TagLine = account.TagLine;
         current.SummonerName = account.GameName + "#" + account.TagLine;
-
-        var ranks = await rankService.GetRankedDataAsync(current.RiotSummonerId, platformRoute, cancellationToken);
-        //TODO HERE FOR RANKS
-        // Move old ranks to historical table
-        var oldRanks = await context.Ranks.Where(r => r.Summoner.Puuid == current.Puuid)
-            .ToListAsync(cancellationToken);
-        var historicalRanks = oldRanks.Select(oldRank => new HistoricalRank
-        {
-            QueueType = oldRank.QueueType,
-            Tier = oldRank.Tier,
-            RankNumber = oldRank.RankNumber,
-            LeaguePoints = oldRank.LeaguePoints,
-            Wins = oldRank.Wins,
-            Losses = oldRank.Losses,
-            DateRecorded = DateTime.UtcNow,
-            Summoner = current
-        }).ToList();
-
-        context.HistoricalRanks.AddRange(historicalRanks);
-        context.Ranks.RemoveRange(oldRanks);
-
-        foreach (var rank in ranks)
-            rank.Summoner = current;
-        current.Ranks = ranks;
-
-        await context.SaveChangesAsync(cancellationToken);
-
         return current;
     }
 }
