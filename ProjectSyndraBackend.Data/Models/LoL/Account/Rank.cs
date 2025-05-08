@@ -3,7 +3,6 @@ namespace ProjectSyndraBackend.Data.Models.LoL.Account;
 public class Rank
 {
     public Guid Id { get; set; }
-    public int RankId { get; set; }
     public string Tier { get; set; } = "";
     public string RankNumber { get; set; } = "";
     public int LeaguePoints { get; set; }

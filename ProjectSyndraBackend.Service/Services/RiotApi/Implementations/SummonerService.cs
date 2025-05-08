@@ -1,7 +1,5 @@
 using Camille.Enums;
 using Camille.RiotGames;
-using Microsoft.EntityFrameworkCore;
-using ProjectSyndraBackend.Data;
 using ProjectSyndraBackend.Data.Models.LoL.Account;
 using ProjectSyndraBackend.Service.Services.RiotApi.Interfaces;
 
@@ -9,7 +7,7 @@ namespace ProjectSyndraBackend.Service.Services.RiotApi.Implementations;
 
 // SummonerService.cs
 
-public class SummonerService(RiotGamesApi riotApi)
+public class SummonerService(RiotGamesApi riotApi, IRankService rankService)
     : ISummonerService
 {
     public async Task<Summoner> GetSummonerByIdAsync(string summonerId, PlatformRoute platformRoute,
@@ -46,6 +44,18 @@ public class SummonerService(RiotGamesApi riotApi)
         current.GameName = account.GameName;
         current.TagLine = account.TagLine;
         current.SummonerName = account.GameName + "#" + account.TagLine;
+
+
+        var latestRank = await rankService.GetRankedDataAsync(current.RiotSummonerId, platformRoute, cancellationToken);
+
+        if (latestRank.Count > 0)
+        {
+            current.Ranks = latestRank;
+        }
+        else
+        {
+            current.Ranks = [];
+        }
         return current;
     }
 }
