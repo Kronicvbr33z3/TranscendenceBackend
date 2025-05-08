@@ -1,4 +1,3 @@
-using ProjectSyndraBackend.Service.Services.Analysis;
 using ProjectSyndraBackend.Service.Services.Analysis.Interfaces;
 
 namespace ProjectSyndraBackend.Service.Services.Jobs;
@@ -11,9 +10,6 @@ public class AnalyzeData(IChampionLoadoutAnalysisService championLoadoutAnalysis
         var loadouts = await championLoadoutAnalysis.GetChampionLoadoutsAsync(stoppingToken);
         // do something with the loadouts
         // for now print all the loadouts
-        foreach (var loadout in loadouts)
-        {
-            Console.WriteLine(loadout);
-        }
+        foreach (var loadout in loadouts) Console.WriteLine(loadout);
     }
 }

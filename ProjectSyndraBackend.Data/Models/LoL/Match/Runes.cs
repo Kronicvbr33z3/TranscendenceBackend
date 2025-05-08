@@ -2,7 +2,7 @@
 
 public class Runes
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public int PrimaryStyle { get; set; }
     public int SubStyle { get; set; }

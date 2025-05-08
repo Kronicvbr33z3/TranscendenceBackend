@@ -4,7 +4,8 @@ namespace ProjectSyndraBackend.Data.Models.LoL.Account;
 
 public class Summoner
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; set; } // Primary key
+    public string? ExternalSummonerId { get; set; } // Renamed from SummonerId
     public string? RiotSummonerId { get; set; }
     public string? SummonerName { get; set; }
     public int ProfileIconId { get; set; }
@@ -16,7 +17,6 @@ public class Summoner
     public string? AccountId { get; set; }
     public required string? PlatformRegion { get; set; }
     public required string? Region { get; set; }
-    public List<Match.Match> Matches { get; } = [];
-    public List<MatchSummoner> MatchSummoners { get; } = [];
+    public ICollection<MatchSummoner> MatchSummoners { get; set; } = new List<MatchSummoner>();
     public ICollection<Rank> Ranks { get; set; } = new List<Rank>();
 }

@@ -10,6 +10,11 @@ public class Rank
     public int Wins { get; set; }
     public int Losses { get; set; }
     public string QueueType { get; set; } = "";
+    
+    // Foreign key as GUID
     public Guid SummonerId { get; set; }
     public required Summoner Summoner { get; set; }
+    
+    // Keep external ID for reference
+    public string ExternalSummonerId { get; set; }
 }

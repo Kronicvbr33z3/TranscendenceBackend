@@ -31,7 +31,6 @@ public class SummonerService(RiotGamesApi riotApi, IRankService rankService, Pro
     {
         var current = new Summoner
         {
-            SummonerId = summoner.Puuid,
             RiotSummonerId = summoner.Id,
             Puuid = summoner.Puuid,
             AccountId = summoner.AccountId,
@@ -49,13 +48,12 @@ public class SummonerService(RiotGamesApi riotApi, IRankService rankService, Pro
         current.SummonerName = account.GameName + "#" + account.TagLine;
 
         var ranks = await rankService.GetRankedDataAsync(current.RiotSummonerId, platformRoute, cancellationToken);
-
+        //TODO HERE FOR RANKS
         // Move old ranks to historical table
-        var oldRanks = await context.Ranks.Where(r => r.SummonerId == current.RiotSummonerId)
+        var oldRanks = await context.Ranks.Where(r => r.Summoner.Puuid == current.Puuid)
             .ToListAsync(cancellationToken);
         var historicalRanks = oldRanks.Select(oldRank => new HistoricalRank
         {
-            SummonerId = oldRank.SummonerId,
             QueueType = oldRank.QueueType,
             Tier = oldRank.Tier,
             RankNumber = oldRank.RankNumber,

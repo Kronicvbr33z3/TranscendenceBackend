@@ -4,7 +4,7 @@ namespace ProjectSyndraBackend.Data.Models.Service;
 
 public class CurrentChampionLoadout
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public List<UnitWinPercent> UnitWinPercents { get; set; } = [];
 

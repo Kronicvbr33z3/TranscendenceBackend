@@ -4,8 +4,7 @@ namespace ProjectSyndraBackend.Data.Models.LoL.Account;
 
 public class HistoricalRank
 {
-    public int Id { get; set; }
-    public string? SummonerId { get; set; }
+    public Guid Id { get; set; }
     public string? QueueType { get; set; }
     public string? Tier { get; set; }
     public string? RankNumber { get; set; }

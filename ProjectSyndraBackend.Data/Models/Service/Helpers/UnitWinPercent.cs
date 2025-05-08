@@ -8,4 +8,3 @@ public class UnitWinPercent
     public required string Type { get; set; }
     public required string Unit { get; set; }
 }
-
