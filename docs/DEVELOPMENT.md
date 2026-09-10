@@ -538,6 +538,32 @@ lets a lab series and a field series for the same route sit on one Grafana panel
 node-exporter serves a textfile indefinitely, so a dead sweep leaves every other panel looking
 healthy. The `trn-web-lab-sweep-stale` alert is the only thing that catches it.
 
+### Diagnosing a slow route
+
+The gauges say *which* route is slow; only the full Lighthouse report says why. Pass
+`--report-dir` to keep one report per route:
+
+```bash
+node scripts/perf/web-lab.mjs --base-url https://transcend.kronic.one \
+  --routes scripts/perf/routes.prod.json --samples 1 --report-dir ./reports
+```
+
+Measure where the signal is. A developer laptop is fast enough to hide the problem — the same
+route scored 0.98 locally and 0.61 on the prod box. To reproduce a production number, run the
+sweep image on the box itself:
+
+```bash
+docker run --rm --shm-size=1g -v /var/lib/transcendence-perf/diag:/out \
+  ghcr.io/luisgon-dev/transcendence-perf:main \
+  --base-url https://transcend.kronic.one --routes scripts/perf/routes.prod.json \
+  --samples 1 --report-dir /out
+```
+
+The audits worth reading first are `mainthread-work-breakdown` (where the time went),
+`bootup-time` (which script), `long-tasks` (what blocked), and `unused-javascript`. A small
+bundle with a large evaluation time means the cost is *work*, not download size, and no amount of
+code splitting will help.
+
 ### Lab scores are not portable between machines
 
 Lighthouse calibrates its simulated throttling against the CPU it runs on, so **absolute scores
