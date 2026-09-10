@@ -499,7 +499,14 @@ The `web` job has no backend, so the only routes it can honestly measure are the
 without one. That is why coverage sat at three routes for so long. Pointing Lighthouse at a
 data-dense route with no backend measures an empty state, renders fast, and *passes* — strictly
 worse than not measuring. Any route added to `scripts/perf/routes.ci.json` must be one the CI seed
-actually populates; today that is the leaderboard surface plus the static pages.
+renders *representatively* — which is a stricter bar than "the seed has rows for it".
+
+`/lol/leaderboards` is the worked example, and it is **deliberately excluded**. The seed does
+populate it, but with so few rows that the page reflows as it settles: CI measured CLS 0.932 and a
+0.65 performance score, while the nightly sweep against production measured CLS 0.016 and 0.95 for
+the same route on the same commit. A 57x gap is the environment, not the code. Gating on it would
+fail every PR for a defect that does not exist. Re-add it once the seed carries a realistic
+leaderboard page, and confirm the CI number lands near the production one before trusting it.
 
 Budgets are in `scripts/perf/web-budgets.json`. Keys are ceilings on the median sample, except
 `category:*` keys which are floors on the Lighthouse category score. `routes` entries are keyed by

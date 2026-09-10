@@ -4,7 +4,6 @@
   "/account/login",
   "/account/register",
   "/lol",
-  "/lol/leaderboards",
   "/lol/multi-search",
   "/lol/live"
 ]
