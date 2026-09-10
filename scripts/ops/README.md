@@ -428,3 +428,12 @@ route (`/lol/champions/[championId]` and friends) requires picking an ID from th
 probing URLs — under partial prerendering a missing entity still returns HTTP 200 with a
 near-identical shell and echoes the identifier back into the page, so a bad ID would be measured
 as a fast page and silently pass.
+
+### Lab scores are host-specific
+
+Lighthouse calibrates its simulated throttling to the CPU it runs on, so the numbers from this
+sweep are **only comparable to other runs of this sweep**. `/lol/tierlist` measured 0.61 here and
+0.98 from a developer laptop on the same commit against the same URL, with the box idle. Do not
+compare these against CI gate numbers or treat them as an absolute quality score. The regression
+alert, which compares each route against its own 7-day baseline on this host, is the instrument
+that actually works.

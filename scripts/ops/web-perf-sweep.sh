@@ -12,7 +12,8 @@ set -Eeuo pipefail
 
 IMAGE="${PERF_IMAGE:-ghcr.io/luisgon-dev/transcendence-perf:main}"
 BASE_URL="${PERF_BASE_URL:-https://transcend.kronic.one}"
-TEXTFILE_DIR="${PERF_TEXTFILE_DIR:-/var/lib/transcendence-perf/textfile}"
+STATE_DIR="${PERF_STATE_DIR:-/var/lib/transcendence-perf}"
+TEXTFILE_DIR="${PERF_TEXTFILE_DIR:-${STATE_DIR}/textfile}"
 SAMPLES="${PERF_SAMPLES:-3}"
 OUT_NAME="web_lab.prom"
 
@@ -32,12 +33,19 @@ if ! docker pull --quiet "${IMAGE}" >/dev/null 2>&1; then
   fi
 fi
 
-# The container writes into a scratch dir we own, then we move the result into place. Two
+# The container writes into a staging dir we own, then we move the result into place. Two
 # reasons: the container runs as a non-root user that will not own the host textfile dir, and
 # node-exporter parses whatever it finds, so the file must appear atomically and complete.
-SCRATCH="$(mktemp -d)"
+#
+# Staging lives under the state directory rather than /tmp on purpose. The unit sets
+# PrivateTmp=true, so a mktemp path here resolves inside systemd's per-unit /tmp namespace —
+# but `docker run` is executed by the daemon *outside* that namespace, where the path does not
+# exist, so Docker silently creates a fresh root-owned directory and the non-root container
+# gets EACCES writing into it.
+SCRATCH="${STATE_DIR}/staging"
+rm -rf "${SCRATCH}"
+install -d -m 0777 "${SCRATCH}"
 trap 'rm -rf "${SCRATCH}"' EXIT
-chmod 0777 "${SCRATCH}"
 
 if docker run --rm \
   --network host \
