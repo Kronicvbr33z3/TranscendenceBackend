@@ -12,10 +12,11 @@
   },
   "dependencies": {
     "@transcendence/api-client": "workspace:*",
+    "@transcendence/web-routes": "workspace:*",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "framer-motion": "11.18.2",
-    "next": "^16.2.11",
+    "next": "^16.3.4",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -32,12 +33,12 @@
     "@typescript-eslint/parser": "^8.60.1",
     "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.2.11",
+    "eslint-config-next": "^16.3.4",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.22",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.2",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   }
 }

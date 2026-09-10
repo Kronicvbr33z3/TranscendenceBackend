@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the Transcendence frontend lab performance sweep nightly
+
+[Timer]
+# 03:40 keeps it clear of the 04:20 Postgres performance report, so the two never compete for
+# the same idle window. Persistent catches up after a reboot rather than skipping a night.
+OnCalendar=*-*-* 03:40:00
+RandomizedDelaySec=20m
+Persistent=true
+Unit=transcendence-web-perf.service
+
+[Install]
+WantedBy=timers.target

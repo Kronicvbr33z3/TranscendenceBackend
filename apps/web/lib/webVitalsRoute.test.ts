@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isWebVitalsRouteTemplate, webVitalsRouteTemplate } from "@/lib/webVitalsRoute";
+import { isWebVitalsRouteTemplate, webVitalsRouteTemplate } from "@transcendence/web-routes";
 
 describe("webVitalsRouteTemplate", () => {
   it("removes Riot IDs and resource identifiers", () => {

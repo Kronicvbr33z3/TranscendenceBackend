@@ -368,3 +368,63 @@ less /var/lib/transcendence-performance/latest.md
 Use `MAX_STEADY_BACKLOG=2000` only when deliberately redefining the busy threshold. A low `idx_scan`
 count is a review signal, not permission to drop an index; compare multiple steady reports and inspect
 constraints/query plans first.
+
+## `web-perf-sweep.sh` — nightly frontend lab performance sweep
+
+Runs the same Lighthouse runner the CI gate uses (`scripts/perf/web-lab.mjs`), but against the live
+site instead of a seeded stack, and publishes Prometheus exposition instead of a pass/fail. The box
+measures itself: **CI never writes to Prometheus**, so there is no receiver to expose, no
+pushgateway, and no credentials in the pipeline.
+
+The sweep writes `web_lab.prom` into a host directory that node-exporter mounts read-only as its
+textfile collector directory. Metrics arrive on node-exporter's existing scrape under `job="node"`.
+
+Why both this and the CI gate exist: the gate runs on seeded, fixed data, so a change in a number
+is attributable to a commit. This runs on production data, so it tells the truth about what users
+get — but its numbers move as the database grows even when nothing shipped. Neither replaces the
+other.
+
+Install on the Docker host:
+
+```bash
+install -D -m 0755 web-perf-sweep.sh /root/deploy/web-perf-sweep.sh
+install -D -m 0644 transcendence-web-perf.service \
+  /etc/systemd/system/transcendence-web-perf.service
+install -D -m 0644 transcendence-web-perf.timer \
+  /etc/systemd/system/transcendence-web-perf.timer
+install -d -m 0755 /var/lib/transcendence-perf/textfile
+systemctl daemon-reload
+systemctl enable --now transcendence-web-perf.timer
+```
+
+The monitoring stack must also be recreated once so node-exporter picks up the textfile mount and
+Prometheus the longer retention:
+
+```bash
+cd /root/transcendence-monitoring
+docker compose -f compose.yml -f compose.prod.yml up -d node-exporter prometheus
+```
+
+Operate:
+
+```bash
+systemctl start transcendence-web-perf.service     # run now, ~5 min for 15 routes
+journalctl -u transcendence-web-perf.service -n 50
+systemctl list-timers transcendence-web-perf.timer
+cat /var/lib/transcendence-perf/textfile/web_lab.prom
+curl -s localhost:9100/metrics | grep transcendence_web_lab   # via node-exporter
+```
+
+Tunables are environment variables on the unit: `PERF_IMAGE`, `PERF_BASE_URL`, `PERF_SAMPLES`
+(default 3), `PERF_TEXTFILE_DIR`.
+
+**A failed sweep does not delete the previous file.** node-exporter would otherwise keep serving
+stale numbers with no indication anything is wrong, so the `trn-web-lab-sweep-stale` Grafana alert
+watches `transcendence_web_lab_last_success_unixtime_seconds` and fires after 48 hours. If that
+alert is disabled, a dead sweep is invisible.
+
+Routes live in `scripts/perf/routes.prod.json` and are static-only by design. Adding a dynamic
+route (`/lol/champions/[championId]` and friends) requires picking an ID from the database, not by
+probing URLs — under partial prerendering a missing entity still returns HTTP 200 with a
+near-identical shell and echoes the identifier back into the page, so a bad ID would be measured
+as a fast page and silently pass.

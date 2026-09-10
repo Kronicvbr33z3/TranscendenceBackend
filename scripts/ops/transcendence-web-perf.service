@@ -1,0 +1,24 @@
+[Unit]
+Description=Transcendence nightly frontend lab performance sweep
+Documentation=https://github.com/luisgon-dev/Transcendence/blob/main/scripts/ops/README.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/root/deploy/web-perf-sweep.sh
+# Chromium is heavy and this box also serves traffic. Same posture as the Postgres report:
+# lowest IO priority and a small CPU share so a sweep can never contend with a live request.
+Nice=10
+IOSchedulingClass=idle
+CPUWeight=20
+MemoryMax=2G
+TimeoutStartSec=30min
+ProtectSystem=strict
+# ProtectSystem=strict makes the whole filesystem read-only; the sweep must still publish its
+# exposition file where node-exporter reads it.
+ReadWritePaths=/var/lib/transcendence-perf/textfile
+StateDirectory=transcendence-perf
+StateDirectoryMode=0755
+PrivateTmp=true
+NoNewPrivileges=true

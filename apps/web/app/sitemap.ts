@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { cacheLife } from "next/cache";
 
 import { fetchBackendJson } from "@/lib/backendCall";
 import type { BuildResourceIndexResponse } from "@/lib/buildResources";
@@ -7,8 +8,6 @@ import type { LeaderboardResponse } from "@/lib/leaderboards";
 import { platformRegionToSlug } from "@/lib/lolRegions";
 import { encodeRiotIdPath } from "@/lib/riotid";
 import { fetchChampionMap } from "@/lib/staticData";
-
-export const revalidate = 86400;
 
 const STATIC_ROUTES: Array<{
   path: string;
@@ -28,6 +27,11 @@ const STATIC_ROUTES: Array<{
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  "use cache";
+  // Was `export const revalidate = 86400`; `cacheComponents` rejects route segment
+  // config, and the `days` profile is the built-in equivalent of that 24h window.
+  cacheLife("days");
+
   const origin = getPublicSiteOrigin();
   const now = new Date();
   const entries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({

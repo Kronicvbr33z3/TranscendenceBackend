@@ -1,0 +1,18 @@
+{
+  "_comment": [
+    "Ported from the retired lighthouserc.cjs. Keys without a prefix are ceilings on the median",
+    "sample; keys prefixed 'category:' are floors on the Lighthouse category score (0-1).",
+    "'default' applies to every route; entries under 'routes' are keyed by the route TEMPLATE",
+    "from @transcendence/web-routes, not by URL path, so a dynamic route needs its template form.",
+    "Data-dense routes get their own headroom rather than being held to the homepage's numbers."
+  ],
+  "default": {
+    "category:performance": 0.8,
+    "lcp": 4000,
+    "cls": 0.1,
+    "tbt": 350,
+    "interactive": 5000,
+    "total_bytes": 1600000
+  },
+  "routes": {}
+}

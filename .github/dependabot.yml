@@ -1,0 +1,85 @@
+version: 2
+
+# Why this file exists: the repo previously had no Dependabot config, so GitHub scanned the
+# lockfile for *alerts* but never opened version-update PRs. Dependencies drifted until 31 npm
+# alerts had piled up, most of which needed no override at all — the direct dependency's semver
+# range already allowed a patched version and nobody had refreshed the lockfile.
+#
+# Note that Dependabot cannot fix a vulnerability whose remedy lives in the root package.json
+# `pnpm.overrides` block, because that is not a dependency range it knows how to bump. The
+# `audit` job in ci-web-backend.yml is what catches those. See docs/DEVELOPMENT.md
+# "Dependency Security (npm)".
+
+updates:
+  # ---------------------------------------------------------------- npm (pnpm workspace)
+  # `directory: "/"` covers the workspace root plus apps/* and packages/* via pnpm-workspace.yaml.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      # Runtime deps ship in transcendence-web, so keep them reviewable on their own.
+      prod-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      # Build/test tooling is where nearly every advisory lands; batch it into one PR.
+      dev-minor-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+    # Majors here are breaking often enough to want a human driving. Next 16.2 -> 16.3 alone
+    # removed route segment config support under `cacheComponents`.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ---------------------------------------------------------------- .NET
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      nuget-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ---------------------------------------------------------------- Python (analytics modeler)
+  - package-ecosystem: "pip"
+    directory: "/analytics/modeler"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      pip-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # ---------------------------------------------------------------- GitHub Actions
+  # Every action in this repo is SHA-pinned with a trailing version comment. Dependabot
+  # rewrites both the SHA and the comment, which is far less error-prone than doing it by hand.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # ---------------------------------------------------------------- Container base images
+  - package-ecosystem: "docker"
+    directories:
+      - "/Transcendence.WebAPI"
+      - "/Transcendence.Service"
+      - "/analytics/modeler"
+      - "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      base-images:
+        patterns: ["*"]

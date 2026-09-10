@@ -2,7 +2,7 @@
 
 import { useReportWebVitals } from "next/web-vitals";
 
-import { webVitalsRouteTemplate } from "@/lib/webVitalsRoute";
+import { webVitalsRouteTemplate } from "@transcendence/web-routes";
 
 function reportMetric(metric: Parameters<typeof useReportWebVitals>[0] extends (
   metric: infer T
