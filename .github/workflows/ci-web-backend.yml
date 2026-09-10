@@ -51,6 +51,35 @@ jobs:
       - name: Modeler Tests
         run: .venv/bin/python -m pytest
 
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Dependabot's alert list and `pnpm audit` do NOT report the same set — a Sept 2026
+      # sweep found criticals in `next` that Dependabot had not surfaced. This gate reads the
+      # real lockfile resolution, and it is also what stops a `pnpm.overrides` floor from
+      # silently rotting below a newer advisory (nothing else fails when that happens).
+      #
+      # There is deliberately no ignore list. The tree audits clean, and it should stay that
+      # way — if a new advisory has no patched release, fix the chain (see docs/DEVELOPMENT.md
+      # "Dependency Security (npm)") rather than adding a suppression here.
+      - name: Audit Dependencies
+        run: pnpm audit --audit-level=high
+
   web:
     runs-on: ubuntu-latest
 
@@ -86,19 +115,7 @@ jobs:
       - name: Build
         run: pnpm --filter web build
 
-      - name: Frontend performance budgets
-        run: pnpm perf:web:ci
-
-      - name: Upload Lighthouse reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: lighthouse-reports
-          path: .lighthouseci/reports
-          if-no-files-found: ignore
-          retention-days: 14
-
-  performance-api:
+  performance:
     runs-on: ubuntu-latest
 
     services:
@@ -138,6 +155,17 @@ jobs:
         uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
         with:
           k6-version: "1.3.0"
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build and migrate performance stack
         env:
@@ -192,6 +220,36 @@ jobs:
           -e BASE_URL=http://127.0.0.1:8080
           scripts/perf/api-load.js
 
+      - name: Build web
+        run: pnpm web:build
+
+      - name: Start web
+        env:
+          TRN_BACKEND_BASE_URL: "http://127.0.0.1:8080"
+        run: |
+          pnpm --filter web start > .performance-artifacts/web.log 2>&1 &
+          echo "$!" > .performance-artifacts/web.pid
+
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/terms >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat .performance-artifacts/web.log
+          exit 1
+
+      - name: Frontend lab budgets
+        run: pnpm perf:web:ci
+
+      - name: Stop web
+        if: always()
+        run: |
+          if [[ -f .performance-artifacts/web.pid ]]; then
+            kill "$(cat .performance-artifacts/web.pid)" 2>/dev/null || true
+          fi
+
       - name: Stop WebAPI
         if: always()
         run: |
@@ -199,11 +257,11 @@ jobs:
             kill "$(cat .performance-artifacts/webapi.pid)" 2>/dev/null || true
           fi
 
-      - name: Upload API performance reports
+      - name: Upload performance reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: api-performance-reports
+          name: performance-reports
           path: .performance-artifacts
           if-no-files-found: ignore
           retention-days: 14

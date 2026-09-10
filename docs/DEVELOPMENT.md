@@ -306,6 +306,128 @@ pnpm web:lint
 pnpm web:build
 ```
 
+## Dependency Security (npm)
+
+Most npm advisories here land on dev/build tooling, but **not all of them** — `next` and `sharp`
+ship in the `transcendence-web` runtime, so never assume an alert is dev-only without reading the
+dependency path.
+
+Three things keep this honest, in the order you should reach for them:
+
+1. `.github/dependabot.yml` — weekly version-update PRs across npm, NuGet, pip, Actions and Docker.
+2. The `audit` job in `.github/workflows/ci-web-backend.yml` — `pnpm audit --audit-level=high`.
+3. `pnpm.overrides` in the root `package.json` — the **last** resort, for chains that are frozen
+   upstream.
+
+### Use both scanners — they disagree
+
+**GitHub Dependabot alerts and `pnpm audit` do not report the same set.** In a Sept 2026 sweep,
+Dependabot listed 31 open alerts, all of them dev tooling. `pnpm audit` on the same tree found
+advisories Dependabot had not surfaced at all — including two **critical** ones in `next` itself
+and a high in `sharp`, both of which ship to production. Check both when triaging:
+
+```bash
+gh api repos/:owner/:repo/dependabot/alerts --paginate --jq '.[] | select(.state=="open")'
+pnpm audit --audit-level=low
+```
+
+Treat `pnpm audit` as the authority on what is actually installed; it reads the real lockfile
+resolution rather than GitHub's periodic scan. That is why CI gates on it and not on the alert list.
+
+### Prefer a dependency bump over an override
+
+Overrides are a fallback, not the default fix. In the Sept 2026 sweep the block had grown to 26
+entries; **22 of them were dead weight** — the direct dependency's semver range already reached a
+patched version and the pin was doing nothing. Only four chains were genuinely frozen.
+
+To find out which entries are actually load-bearing, resolve from a clean slate with the block
+emptied and see what the advisory scan still reports:
+
+```bash
+cp package.json /tmp/pkg.bak && cp pnpm-lock.yaml /tmp/lock.bak
+# empty the pnpm.overrides block, then:
+rm pnpm-lock.yaml && pnpm install && pnpm audit --audit-level=low
+```
+
+Deleting the lockfile matters — pnpm keeps an existing resolution when it still satisfies a range,
+so re-resolving in place will make redundant pins look necessary. Restore the backups afterwards.
+
+Reach for an override only when that test shows the range genuinely cannot get there. After
+`@lhci/cli` was dropped in favour of driving Lighthouse directly, that is `esbuild` alone. Otherwise
+raise the direct dependency's floor — especially when the vulnerable package is version-locked to a
+parent we own. `@vitest/mocker` moves in lockstep with `@vitest/runner` / `expect` / `spy`, so
+overriding it alone desyncs the set; `apps/web` pins `vitest` instead. Same for `next` and `sharp`.
+
+### Writing an override
+
+Use pnpm's **range-keyed selector** form, one entry per affected major line:
+
+```jsonc
+"tmp@<0.2.7": "0.2.7",
+```
+
+This only rewrites versions inside the vulnerable range and leaves other majors alone — prefer it
+over the blunt `"pkg": "x.y.z"` form, which pins every copy in the tree.
+
+**The gotcha:** a range-keyed override pins a floor, and when a *newer* advisory lands on the same
+package the pin silently goes stale. It is still satisfied, so nothing fails, but it now sits below
+the patched version. Five of the original eighteen entries were stale, and one freshly-added pin
+(`tmp@0.2.6`) was outrun by a new advisory within the same working session. Nothing but the CI
+`audit` job catches this — Dependabot cannot, because the fix is not a dependency range it can bump.
+
+### When an advisory looks unfixable
+
+It usually is not. Before concluding that nothing can be done, check whether the *top* of the
+chain is the stale link — an actively maintained tool has often already fixed the problem in a
+release that something above it is pinning you away from.
+
+**Worked example, now resolved.** `extract-zip` reached this repo four levels beneath `@lhci/cli`:
+
+```
+@lhci/cli -> lighthouse -> puppeteer-core -> @puppeteer/browsers -> extract-zip
+```
+
+`extract-zip@2.0.1` is the last version its maintainers ever published (June 2020) and both
+advisories against it have no patched release, so the package itself was a dead end. But the
+ecosystem had already fixed it by *deleting* the dependency: `@puppeteer/browsers@3.x` dropped
+`extract-zip`, `puppeteer-core@25.x` uses that, and `lighthouse@13.x` requires
+`puppeteer-core@^25.3.0`. Lighthouse ships continuously; the only stale link was `@lhci/cli@0.15.1`
+(June 2025, last commit to its default branch June 2025), which pinned `lighthouse` to exactly
+`12.6.1`.
+
+The interim fix was a single override, `"lighthouse@<13": "13.4.1"`. **That override no longer
+exists** — `@lhci/cli` was subsequently dropped entirely in favour of driving Lighthouse directly
+(see *Performance Gates*), which removed the dormant dependency rather than routing around it and
+took `qs`, `tmp` and `uuid` with it. The overrides block is down to `esbuild`.
+
+Two things that did **not** work, recorded so nobody retries them:
+
+- **Overriding `@puppeteer/browsers` to 3.x under `puppeteer-core@24`.** 3.x is ESM-only
+  (`"type": "module"`, no CJS build) and replaced `extract-zip` with `modern-tar`, while
+  `puppeteer-core@24`'s CJS build `require()`s it. That ESM switch is what the major was for.
+- **Suppressing it.** `pnpm.auditConfig.ignoreGhsas` exists and works, but a suppression is not a
+  fix — it just stops you finding out. **This repo has no ignore list and should not acquire one.**
+
+### Verifying a dependency bump
+
+A bad pin usually surfaces as a runtime failure in a build tool, not as an install error, so
+exercise the toolchain rather than trusting a clean install:
+
+```bash
+pnpm install --frozen-lockfile     # what CI runs
+pnpm audit --audit-level=high      # what the CI audit job runs; must stay at zero
+pnpm web:test && pnpm web:lint && pnpm web:build
+pnpm api:check
+pnpm perf:web                      # the Lighthouse CI chain, end to end
+```
+
+`pnpm perf:web` is slow but it is the only step that exercises the Lighthouse toolchain for real.
+An install or type-check will not catch a runner that cannot launch Chrome.
+
+Where a bump crosses a major (`tmp` 0.0.33 -> 0.2.x, `uuid` 8 -> 11), find the actual call sites in
+the consuming package before trusting it — both of those turned out to use a single API
+(`tmp.fileSync` / `tmp.tmpNameSync`, `uuid.v4()`) that survived the major.
+
 ## Backend Tests
 
 From repo root:
@@ -350,22 +472,80 @@ Note:
 
 ## Performance Gates
 
-Performance budgets are part of the main CI workflow, not an optional benchmark:
+Performance is split into a **gate** and a **trend**, and the two answer different questions.
+Do not collapse them.
 
-- `pnpm perf:web` builds the production Next.js app and runs Lighthouse CI three times against the landing,
-  login, and terms routes using a mobile profile. `lighthouserc.cjs` enforces the median performance
-  score, LCP, CLS, total blocking time, time-to-interactive, and transfer-size budgets. CI retains the
-  HTML/JSON reports for 14 days.
-- The `performance-api` CI job migrates PostgreSQL 18, seeds 200 summoners and 4,000 ranked matches,
-  starts a release WebAPI against PostgreSQL + Redis, and runs `scripts/perf/api-load.js` with k6 1.3.0.
-  It covers readiness, cached regional/champion leaderboards, and a varied champion-query matrix.
-  Thresholds fail the build on response/check errors or p95 latency regressions.
-- Run `pnpm perf:api` locally after starting an equivalently seeded API, or call k6 directly with
-  `BASE_URL=http://127.0.0.1:8080`. The CI seed is intentionally synthetic and deterministic; production
-  field performance is evaluated separately through the Web Vitals dashboard.
+| | Runs where | Measures | Purpose |
+|---|---|---|---|
+| **Gate** | `performance` CI job | seeded, hermetic stack | a change in the number means a change in the code, so it is attributable to a commit |
+| **Trend** | `transcendence-web-perf.timer` on prod | the live deployment | what users actually get; moves with data growth as well as code |
 
-Budget changes must include a measured reason in the PR. Do not raise a threshold merely to make a
-regression pass.
+### The gate
+
+One CI job (`performance`) stands up Postgres, Redis, migrations, `seed-leaderboard.sql` and the
+WebAPI, then runs both budgets against that one stack:
+
+- **API** — `k6` with thresholds in `scripts/perf/api-load.js`.
+- **Frontend** — `scripts/perf/web-lab.mjs`, driving Lighthouse's programmatic API.
+
+```bash
+pnpm perf:api          # k6, needs a WebAPI on :8080
+pnpm perf:web          # build + lab budgets, needs the app on :3000
+pnpm perf:web:ci       # lab budgets only, against an already-running app
+```
+
+**The frontend gate lives in the `performance` job and not in `web` for a structural reason.**
+The `web` job has no backend, so the only routes it can honestly measure are the ones that render
+without one. That is why coverage sat at three routes for so long. Pointing Lighthouse at a
+data-dense route with no backend measures an empty state, renders fast, and *passes* — strictly
+worse than not measuring. Any route added to `scripts/perf/routes.ci.json` must be one the CI seed
+renders *representatively* — which is a stricter bar than "the seed has rows for it".
+
+`/lol/leaderboards` is the worked example, and it is **deliberately excluded**. The seed does
+populate it, but with so few rows that the page reflows as it settles: CI measured CLS 0.932 and a
+0.65 performance score, while the nightly sweep against production measured CLS 0.016 and 0.95 for
+the same route on the same commit. A 57x gap is the environment, not the code. Gating on it would
+fail every PR for a defect that does not exist. Re-add it once the seed carries a realistic
+leaderboard page, and confirm the CI number lands near the production one before trusting it.
+
+Budgets are in `scripts/perf/web-budgets.json`. Keys are ceilings on the median sample, except
+`category:*` keys which are floors on the Lighthouse category score. `routes` entries are keyed by
+**route template** (from `@transcendence/web-routes`), not URL path, and override `default`.
+
+### The trend
+
+`transcendence-web-perf.timer` runs the same runner nightly on the prod box against
+`https://transcend.kronic.one`, and writes Prometheus exposition to a textfile that node-exporter
+serves. **CI never writes to Prometheus** — no receiver, no pushgateway, no exposed port, no
+credentials in CI. See `scripts/ops/README.md` for the runbook.
+
+Metrics, all gauges, labelled `route` and `form_factor`:
+
+```
+transcendence_web_lab_lcp_milliseconds          transcendence_web_lab_ttfb_milliseconds
+transcendence_web_lab_cls                       transcendence_web_lab_speed_index_milliseconds
+transcendence_web_lab_tbt_milliseconds          transcendence_web_lab_interactive_milliseconds
+transcendence_web_lab_fcp_milliseconds          transcendence_web_lab_total_bytes
+transcendence_web_lab_category_score{category}  transcendence_web_lab_last_success_unixtime_seconds
+```
+
+The `route` label comes from `webVitalsRouteTemplate()` in `@transcendence/web-routes` — the same
+function the browser Web Vitals reporter uses. **That shared vocabulary is the point**: it is what
+lets a lab series and a field series for the same route sit on one Grafana panel
+(`Transcendence — Web Performance`). Never derive the label any other way.
+
+`_last_success_unixtime_seconds` mirrors the worker's matchup convention and is load-bearing:
+node-exporter serves a textfile indefinitely, so a dead sweep leaves every other panel looking
+healthy. The `trn-web-lab-sweep-stale` alert is the only thing that catches it.
+
+### Adding routes to the nightly sweep
+
+`scripts/perf/routes.prod.json` currently holds static routes only. Dynamic routes
+(`/lol/champions/[championId]` and friends) are **deliberately excluded** until fixtures are chosen
+with knowledge of the data. Under partial prerendering a missing entity still returns HTTP 200 with
+a near-identical shell, and the identifier is echoed into the page regardless — so neither status
+code nor page content reliably distinguishes a real record from a missing one from outside the app.
+Pick IDs by querying the database for rows that actually have analytics, not by probing URLs.
 
 ## OpenAPI + TypeScript Client
 

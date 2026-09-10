@@ -17,7 +17,12 @@ services:
     restart: unless-stopped
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=15d"
+      # 15d made trend analysis impossible; perf regressions play out over quarters. Measured
+      # 2026-09-10: ~71 MB/day at 15k series, so 180d is ~13GB of 301GB free. The size cap is a
+      # ceiling against runaway cardinality, not the target — this host filled its disk on
+      # 2026-07-19 and took Postgres with it, so retention never grows unbounded again.
+      - "--storage.tsdb.retention.time=180d"
+      - "--storage.tsdb.retention.size=32GB"
       - "--web.external-url=${PROMETHEUS_EXTERNAL_URL:-http://localhost:9090}"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -70,10 +75,14 @@ services:
     restart: unless-stopped
     command:
       - "--path.rootfs=/host"
+      # Batch jobs (the nightly frontend lab sweep) drop Prometheus exposition files here and
+      # node-exporter serves them on its existing scrape. No pushgateway, nothing exposed.
+      - "--collector.textfile.directory=/textfile"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|run|var/lib/docker)($|/)"
       - "--collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|tmpfs)$$"
     volumes:
       - "/:/host:ro,rslave"
+      - "${PERF_TEXTFILE_DIR:-/var/lib/transcendence-perf/textfile}:/textfile:ro"
     ports:
       - "${NODE_EXPORTER_PORT:-9100}:9100"
     labels:

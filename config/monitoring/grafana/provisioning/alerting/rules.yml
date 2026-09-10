@@ -8,7 +8,7 @@
 #
 # Coverage: web, WebAPI, worker, Postgres exporter, and Redis exporter liveness; PostgreSQL connection
 # saturation; Redis rejected connections; API errors/latency; browser Web Vitals; matchup generation
-# failures/freshness; and host disk capacity.
+# failures/freshness; host disk capacity; and frontend lab sweep freshness and regression.
 apiVersion: 1
 
 groups:
@@ -1185,6 +1185,153 @@ groups:
         annotations:
           summary: The active Build Lab generation reports calibration error above the promotion gates
           description: The served generation's overall ECE is above 0.015 or its worst time-band ECE above 0.025, which promotion should have rejected. Every published Adjusted WPA is anchored on that calibrated score, so treat the numbers as untrustworthy and roll back.
+        notification_settings:
+          receiver: transcendence-discord
+          group_by:
+            - alertname
+            - grafana_folder
+
+      # --- Frontend lab sweep stale ---
+      - uid: trn-web-lab-sweep-stale
+        title: Frontend lab sweep stale
+        condition: B
+        for: 30m
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 172800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: "(time() - max_over_time(transcendence_web_lab_last_success_unixtime_seconds[48h])) and (max_over_time(transcendence_web_lab_last_success_unixtime_seconds[48h]) > 0)"
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              datasource:
+                type: prometheus
+                uid: prometheus
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: math
+              expression: "$A > 172800"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              datasource:
+                type: __expr__
+                uid: __expr__
+        labels:
+          severity: warning
+        annotations:
+          summary: "No frontend lab sweep has completed in 48 hours"
+          description: "transcendence-web-perf.timer has not published a successful sweep for two nightly windows. node-exporter keeps serving the last exposition file, so the Web Performance dashboard looks healthy while the data is frozen. Check journalctl -u transcendence-web-perf.service and confirm the perf image still pulls."
+        notification_settings:
+          receiver: transcendence-discord
+          group_by:
+            - alertname
+            - grafana_folder
+
+      # --- Frontend lab performance score low ---
+      - uid: trn-web-lab-performance-low
+        title: Frontend lab performance score low
+        condition: B
+        for: 1h
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 172800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: "min(transcendence_web_lab_category_score{category=\"performance\"})"
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              datasource:
+                type: prometheus
+                uid: prometheus
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: math
+              expression: "$A < 0.6"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              datasource:
+                type: __expr__
+                uid: __expr__
+        labels:
+          severity: warning
+        annotations:
+          summary: "A production route scores below 0.6 on Lighthouse performance"
+          description: "The nightly sweep measured a route well under the 0.8 the CI gate enforces, so production is materially slower than the seeded CI build for that page. Data volume is a more common cause than shipped code. Open the Web Performance dashboard and compare the lab series against the field p75 for the same route."
+        notification_settings:
+          receiver: transcendence-discord
+          group_by:
+            - alertname
+            - grafana_folder
+
+      # --- Frontend lab LCP regression ---
+      - uid: trn-web-lab-lcp-regression
+        title: Frontend lab LCP regression
+        condition: B
+        for: 1h
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 172800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: "max(transcendence_web_lab_lcp_milliseconds / (avg_over_time(transcendence_web_lab_lcp_milliseconds[7d]) > 0))"
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              datasource:
+                type: prometheus
+                uid: prometheus
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: math
+              expression: "$A > 1.4"
+              intervalMs: 1000
+              maxDataPoints: 43200
+              datasource:
+                type: __expr__
+                uid: __expr__
+        labels:
+          severity: warning
+        annotations:
+          summary: "A route is 40 percent slower than its own 7-day lab baseline"
+          description: "Nightly lab LCP for at least one route has risen 40 percent above its trailing weekly average. Compare against the field p75 on the Web Performance dashboard. If both moved it is real user impact; if only the lab series moved, suspect the sweep environment."
         notification_settings:
           receiver: transcendence-discord
           group_by:

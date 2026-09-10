@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { logEvent } from "@/lib/serverLog";
-import { isWebVitalsRouteTemplate } from "@/lib/webVitalsRoute";
+import { isWebVitalsRouteTemplate } from "@transcendence/web-routes";
 import {
   getWebVitalsMetricsStore,
   isWebVitalName,

@@ -1,4 +1,4 @@
-const ROUTE_REPLACEMENTS: Array<[RegExp, string]> = [
+const ROUTE_REPLACEMENTS = [
   [
     /^\/lol\/summoners\/[^/]+\/[^/]+\/matches\/[^/]+/,
     "/lol/summoners/[region]/[riotId]/matches/[matchId]"
@@ -46,13 +46,13 @@ const KNOWN_STATIC_ROUTES = new Set([
   "/terms"
 ]);
 
-export function webVitalsRouteTemplate(pathname: string) {
+export function webVitalsRouteTemplate(pathname) {
   for (const [pattern, replacement] of ROUTE_REPLACEMENTS) {
     if (pattern.test(pathname)) return replacement;
   }
   return KNOWN_STATIC_ROUTES.has(pathname) ? pathname : "/_other";
 }
 
-export function isWebVitalsRouteTemplate(value: string) {
+export function isWebVitalsRouteTemplate(value) {
   return webVitalsRouteTemplate(value) === value;
 }

@@ -1,0 +1,444 @@
+{
+ "uid": "trn-web-performance",
+ "title": "Transcendence \u2014 Web Performance (lab + field)",
+ "tags": [
+  "transcendence",
+  "frontend",
+  "performance",
+  "lab"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "5m",
+ "time": {
+  "from": "now-30d",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "route",
+    "label": "Route",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "query": {
+     "query": "label_values(transcendence_web_lab_lcp_milliseconds, route)",
+     "refId": "PrometheusVariableQueryEditor-VariableQuery"
+    },
+    "refresh": 2,
+    "includeAll": true,
+    "multi": true,
+    "allValue": ".*",
+    "current": {
+     "text": "All",
+     "value": "$__all"
+    },
+    "sort": 1
+   }
+  ]
+ },
+ "annotations": {
+  "list": []
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "row",
+   "title": "Lab vs field",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 0
+   },
+   "panels": []
+  },
+  {
+   "id": 2,
+   "title": "LCP \u2014 lab vs field p75, by route",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 10,
+    "w": 24,
+    "x": 0,
+    "y": 1
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 8
+     },
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "options": {
+    "tooltip": {
+     "mode": "multi"
+    },
+    "legend": {
+     "displayMode": "table",
+     "placement": "bottom",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "transcendence_web_lab_lcp_milliseconds{route=~\"$route\"}",
+     "legendFormat": "lab {{route}}"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.75, sum by (route, le) (rate(transcendence_web_vital_duration_milliseconds_bucket{metric=\"LCP\",route=~\"$route\"}[30m])))",
+     "legendFormat": "field p75 {{route}}"
+    }
+   ],
+   "description": "Synthetic LCP from the nightly sweep against production, overlaid on the p75 real users actually experience. Both series carry the same bounded `route` label because the sweep and the browser reporter share @transcendence/web-routes. Divergence is the signal: lab clean while field degrades points at data volume, network or device mix rather than shipped code."
+  },
+  {
+   "id": 3,
+   "title": "Lab performance score, by route",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 9,
+    "w": 12,
+    "x": 0,
+    "y": 11
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 8
+     },
+     "min": 0,
+     "max": 1,
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {
+    "tooltip": {
+     "mode": "multi"
+    },
+    "legend": {
+     "displayMode": "table",
+     "placement": "bottom",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "transcendence_web_lab_category_score{category=\"performance\",route=~\"$route\"}",
+     "legendFormat": "{{route}}"
+    }
+   ],
+   "description": "Lighthouse performance category, 0-1. The CI gate floors this at 0.8 per route."
+  },
+  {
+   "id": 4,
+   "title": "Lab accessibility / SEO / best-practices",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 9,
+    "w": 12,
+    "x": 12,
+    "y": 11
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 8
+     },
+     "min": 0,
+     "max": 1,
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {
+    "tooltip": {
+     "mode": "multi"
+    },
+    "legend": {
+     "displayMode": "table",
+     "placement": "bottom",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "avg by (category) (transcendence_web_lab_category_score{category!=\"performance\"})",
+     "legendFormat": "{{category}}"
+    }
+   ],
+   "description": "Collected by the sweep but not yet gated. The design principles commit to \"Inclusive by default\"; promote accessibility to an error budget once the baseline here is stable."
+  },
+  {
+   "id": 5,
+   "type": "row",
+   "title": "Lab detail",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 20
+   },
+   "panels": []
+  },
+  {
+   "id": 6,
+   "title": "Lab total blocking time",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 0,
+    "y": 21
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 8
+     },
+     "unit": "ms"
+    },
+    "overrides": []
+   },
+   "options": {
+    "tooltip": {
+     "mode": "multi"
+    },
+    "legend": {
+     "displayMode": "table",
+     "placement": "bottom",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "transcendence_web_lab_tbt_milliseconds{route=~\"$route\"}",
+     "legendFormat": "{{route}}"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "title": "Lab cumulative layout shift",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 8,
+    "y": 21
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 8
+     },
+     "unit": "none",
+     "decimals": 3
+    },
+    "overrides": []
+   },
+   "options": {
+    "tooltip": {
+     "mode": "multi"
+    },
+    "legend": {
+     "displayMode": "table",
+     "placement": "bottom",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "transcendence_web_lab_cls{route=~\"$route\"}",
+     "legendFormat": "{{route}}"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "title": "Lab transferred bytes",
+   "type": "timeseries",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 21
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 8
+     },
+     "unit": "bytes"
+    },
+    "overrides": []
+   },
+   "options": {
+    "tooltip": {
+     "mode": "multi"
+    },
+    "legend": {
+     "displayMode": "table",
+     "placement": "bottom",
+     "calcs": [
+      "lastNotNull",
+      "max"
+     ]
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "transcendence_web_lab_total_bytes{route=~\"$route\"}",
+     "legendFormat": "{{route}}"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "title": "Sweep freshness",
+   "type": "stat",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 4,
+    "w": 24,
+    "x": 0,
+    "y": 29
+   },
+   "description": "Age of the last successful sweep. node-exporter serves the textfile indefinitely, so a dead sweep looks healthy on every other panel \u2014 this is the one that catches it.",
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 108000
+       },
+       {
+        "color": "red",
+        "value": 172800
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "time() - transcendence_web_lab_last_success_unixtime_seconds",
+     "legendFormat": "since last sweep"
+    }
+   ]
+  }
+ ]
+}

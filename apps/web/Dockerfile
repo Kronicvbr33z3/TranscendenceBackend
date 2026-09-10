@@ -11,11 +11,15 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY .npmrc ./.npmrc
 COPY openapi openapi
 COPY packages/api-client/package.json packages/api-client/package.json
+COPY packages/web-routes/package.json packages/web-routes/package.json
 COPY apps/web/package.json apps/web/package.json
 
 RUN pnpm install --frozen-lockfile
 
 COPY packages/api-client packages/api-client
+# Shared route-template vocabulary, imported by the Web Vitals reporter and the telemetry
+# route. Plain JS + .d.ts with no build step, so it ships as source.
+COPY packages/web-routes packages/web-routes
 COPY apps/web apps/web
 
 RUN mkdir -p apps/web/public
